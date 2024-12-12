@@ -1,0 +1,36 @@
+name: Test
+on:
+  push:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  deploy-main:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x]
+
+    name: deploy test
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate deployment package
+        run: zip -r deploy.zip . -x '*.git*'
+
+      - name: Generate unique variable based on timestamp
+        run: echo TIME_VAR=PDIM-$(date +%Y-%m-%d-%H:%M:%S) >> $GITHUB_ENV
+
+      - name: Deploy dev to EB
+        uses: einaregilsson/beanstalk-deploy@v20
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: order2
+          environment_name: Order2-env
+          version_label: ${{ env.TIME_VAR }}
+          region: ap-northeast-2
+          deployment_package: deploy.zip
+          wait_for_environment_recovery: 180
+
